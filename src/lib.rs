@@ -1,5 +1,6 @@
 use std::{
     cell::Cell,
+    ffi::OsString,
     io::Read,
     path::{Path, PathBuf},
     sync::{Arc, RwLock},
@@ -11,6 +12,41 @@ use crossbeam_channel::{Receiver, Sender, TryRecvError};
 use gitignore::IgnoreChecker;
 
 mod gitignore;
+
+pub fn get_store_path(path: &Path) -> PathBuf {
+    if path.is_dir() {
+        path.join(".changes.hash")
+    } else if let Some(filename) = path.file_name() {
+        let mut owned = OsString::new();
+        owned.push(".");
+        owned.push(filename);
+        owned.push(".changes.hash");
+        path.with_file_name(owned)
+    } else {
+        path.with_file_name(".ERR.changes.hash")
+    }
+}
+
+pub fn has_changes(check_path: impl AsRef<Path>) -> std::io::Result<bool> {
+    let path = check_path.as_ref();
+    let store = get_store_path(path);
+    let hash = get_hash(path)?;
+
+    if store.exists() {
+        let stored = std::fs::read_to_string(&store)?;
+        let stored = blake3::Hash::from_hex(stored).unwrap();
+
+        if hash == stored {
+            Ok(false)
+        } else {
+            std::fs::write(store, hash.to_hex().as_bytes())?;
+            Ok(true)
+        }
+    } else {
+        std::fs::write(store, hash.to_hex().as_bytes())?;
+        Ok(true)
+    }
+}
 
 pub fn get_hash<P>(path: P) -> std::io::Result<Hash>
 where
