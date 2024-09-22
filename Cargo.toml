@@ -1,0 +1,9 @@
+[package]
+name = "changes"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+blake3 = "1.5.4"
+crossbeam-channel = "0.5.13"
+ignore = "0.4.23"
